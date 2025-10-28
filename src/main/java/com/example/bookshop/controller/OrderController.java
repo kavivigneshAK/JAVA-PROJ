@@ -26,20 +26,34 @@ public class OrderController {
 
     @PostMapping("/order/place")
     @Transactional
-    public String placeOrder(Authentication auth) {
+    public String placeOrder(Authentication auth, Model model) {
         User user = userRepository.findByUsername(auth.getName());
         var items = cartService.getCartItems(user);
+        double totalAmount = 0;
         if (!items.isEmpty()) {
+            totalAmount = items.stream()
+                .mapToDouble(item -> item.getBook().getPrice() * item.getQuantity())
+                .sum();
             orderService.createOrder(user, items);
             cartService.clearCart(user);
         }
-        return "redirect:/orders";
+        model.addAttribute("totalAmount", totalAmount);
+        return "order-confirmation";
     }
 
     @GetMapping("/orders")
     public String viewOrders(Authentication auth, Model model) {
         User user = userRepository.findByUsername(auth.getName());
-        model.addAttribute("orders", orderService.getOrders(user));
+        var orders = orderService.getOrders(user);
+        model.addAttribute("orders", orders);
+
+        // Calculate total amount for all orders
+        double totalAmount = orders.stream()
+            .flatMap(order -> order.getItems().stream())
+            .mapToDouble(item -> item.getBook().getPrice() * item.getQuantity())
+            .sum();
+        model.addAttribute("totalAmount", totalAmount);
+
         return "order-history";
     }
 }

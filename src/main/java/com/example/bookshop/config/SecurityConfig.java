@@ -2,41 +2,19 @@ package com.example.bookshop.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import com.example.bookshop.repository.UserRepository;
+import com.example.bookshop.service.UserService;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    private final UserRepository userRepository;
-
-    public SecurityConfig(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            var user = userRepository.findByUsername(username);
-            if (user == null) throw new UsernameNotFoundException("User not found");
-            return User.withUsername(user.getUsername())
-                    .password(user.getPassword())
-                    .roles(user.getRole().replace("ROLE_", ""))
-                    .build();
-        };
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -44,35 +22,38 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService());
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
+    public UserDetailsService userDetailsService(UserService userService) {
+        return userService;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public DaoAuthenticationProvider authenticationProvider(UserService userService, PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
         http
-            .authenticationProvider(authenticationProvider())
-            .csrf(csrf -> csrf.disable())
+            .authenticationProvider(authenticationProvider)
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/css/**", "/images/**", "/register", "/login").permitAll()
+                .requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
                 .loginPage("/login")
                 .defaultSuccessUrl("/books", true)
+                .permitAll()
             )
             .logout(logout -> logout
                 .logoutSuccessUrl("/login")
+                .permitAll()
             );
+
         return http.build();
     }
 }
+

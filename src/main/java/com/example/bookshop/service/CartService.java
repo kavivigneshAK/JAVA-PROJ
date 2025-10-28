@@ -1,9 +1,14 @@
 package com.example.bookshop.service;
 
-import com.example.bookshop.entity.*;
-import com.example.bookshop.repository.CartItemRepository;
-import org.springframework.stereotype.Service;
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.bookshop.entity.Book;
+import com.example.bookshop.entity.CartItem;
+import com.example.bookshop.entity.User;
+import com.example.bookshop.repository.CartItemRepository;
 
 @Service
 public class CartService {
@@ -25,6 +30,7 @@ public class CartService {
         return cartItemRepository.findByUser(user);
     }
 
+    @Transactional
     public void clearCart(User user) {
         cartItemRepository.deleteByUser(user);
     }
